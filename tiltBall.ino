@@ -1,6 +1,16 @@
-
+#include <Arduino.h>
 #include <NeoPixelBrightnessBus.h> // instead of NeoPixelBus.h
 #define LED_POWER      2
+
+#include <MPU9250_asukiaaa.h>
+
+#ifdef _ESP32_HAL_I2C_H_
+#define SDA_PIN 21
+#define SCL_PIN 22
+#endif
+
+MPU9250_asukiaaa mySensor;
+float aX, aY;
 
 const uint16_t PixelCount = 25; // this example assumes 4 pixels, making it smaller will cause a failure
 const uint8_t PixelPin = 4;  // make sure to set this to the correct pin, ignored for Esp8266
@@ -60,18 +70,56 @@ void setup()
   pinMode(LED_POWER, OUTPUT);
   digitalWrite(LED_POWER, HIGH);
   randomSeed(millis());
-  strip.SetBrightness(100);
+  strip.SetBrightness(10);
+  
+  
+#ifdef _ESP32_HAL_I2C_H_ // For ESP32
+  Wire.begin(SDA_PIN, SCL_PIN);
+  mySensor.setWire(&Wire);
+#endif
+
+  mySensor.beginAccel();
+  mySensor.beginGyro();
+  mySensor.beginMag();
 }
 
 
 void loop()
 {
-  if(millis() - timp >= pauza)
+  if(mySensor.accelUpdate() == 0 && millis() - timp >= pauza)
   {
     timp += pauza;
     readAccelerometer();
     refreshDisplay();
     
+    
+    strip.SetPixelColor(poz_ball, black);
+    strip.Show();
+    aX = mySensor.accelX();
+    aY = mySensor.accelY();
+    if (aY < -0.2)
+    {
+      poz_ball++;
+      if (poz_ball > 24)
+        poz_ball = 24;
+    }
+    if (aY > 0.2)
+    {
+      poz_ball--;
+      if (poz_ball < 0)
+        poz_ball = 24;
+    }
+    if (aX > 0.12)
+    {
+      poz_ball = poz_ball + 5;
+      if (poz_ball > 24)
+        poz_ball = poz_ball - 5;
+    }
+    if (aX < -0.12){
+      poz_ball = poz_ball - 5;
+ if (poz_ball < 0)
+        poz_ball = poz_ball + 5;
+    }
     
   }
   //delay(500);
