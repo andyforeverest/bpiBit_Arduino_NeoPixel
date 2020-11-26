@@ -1,9 +1,4 @@
-// NeoPixelTest
-// This example will cycle between showing four pixels as Red, Green, Blue, White
-// and then showing those pixels as Black.
 
-
-//#include <NeoPixelBus.h>
 #include <NeoPixelBrightnessBus.h> // instead of NeoPixelBus.h
 #define LED_POWER      2
 
@@ -12,12 +7,7 @@ const uint8_t PixelPin = 4;  // make sure to set this to the correct pin, ignore
 
 #define colorSaturation 128
 
-// three element pixels, in different order and speeds
-//NeoPixelBus<NeoGrbFeature, Neo800KbpsMethod> strip(PixelCount, PixelPin);
 NeoPixelBrightnessBus<NeoRgbFeature, Neo800KbpsMethod> strip(PixelCount, PixelPin);
-//NeoPixelBus<NeoRgbFeature, Neo400KbpsMethod> strip(PixelCount, PixelPin);
-
-
 
 RgbColor red(colorSaturation, 0, 0);
 RgbColor green(0, colorSaturation, 0);
@@ -33,18 +23,18 @@ HslColor hslBlue(blue);
 HslColor hslWhite(white);
 HslColor hslBlack(black);
 
-uint8_t matrice[][] = {
-{20, 15, 10, 5, 0},
-{21, 16, 11, 6, 1},
-{22, 17, 12, 7, 2},
-{23, 18, 13, 8, 3},
-{24, 19, 14, 9, 4}
+uint8_t matrice[5][5] = {
+  {20, 15, 10, 5, 0},
+  {21, 16, 11, 6, 1},
+  {22, 17, 12, 7, 2},
+  {23, 18, 13, 8, 3},
+  {24, 19, 14, 9, 4}
 };
 
 struct led {
-int8_t row,
-int8_t col, 
-uint8_t val
+  int8_t row,
+  int8_t col, 
+  uint8_t val
 };
 
 struct led ball = {0, 0, 0};
@@ -70,12 +60,20 @@ void setup()
   pinMode(LED_POWER, OUTPUT);
   digitalWrite(LED_POWER, HIGH);
   randomSeed(millis());
+  strip.SetBrightness(100);
 }
 
 
 void loop()
 {
-  //strip.SetBrightness(100);
+  if(millis() - timp >= pauza)
+  {
+    timp += pauza;
+    readAccelerometer();
+    refreshDisplay();
+    
+    
+  }
   //delay(500);
 #if 0
   Serial.println("Colors R, G, B, W...");
