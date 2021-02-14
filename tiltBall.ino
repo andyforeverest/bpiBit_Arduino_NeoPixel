@@ -1,6 +1,11 @@
 #include <Arduino.h>
 #include <NeoPixelBrightnessBus.h> // instead of NeoPixelBus.h
-#define LED_POWER      2
+#define LED_POWER 2
+
+const uint16_t PixelCount = 25; // this example assumes 4 pixels, making it smaller will cause a failure
+const uint8_t PixelPin = 4;     // make sure to set this to the correct pin, ignored for Esp8266
+
+#define colorSaturation 10
 
 #include <MPU9250_asukiaaa.h>
 
@@ -11,11 +16,6 @@
 
 MPU9250_asukiaaa mySensor;
 float aX, aY;
-
-const uint16_t PixelCount = 25; // this example assumes 4 pixels, making it smaller will cause a failure
-const uint8_t PixelPin = 4;  // make sure to set this to the correct pin, ignored for Esp8266
-
-#define colorSaturation 128
 
 NeoPixelBrightnessBus<NeoRgbFeature, Neo800KbpsMethod> strip(PixelCount, PixelPin);
 
@@ -33,27 +33,14 @@ HslColor hslBlue(blue);
 HslColor hslWhite(white);
 HslColor hslBlack(black);
 
-uint8_t matrice[5][5] = {
-  {20, 15, 10, 5, 0},
-  {21, 16, 11, 6, 1},
-  {22, 17, 12, 7, 2},
-  {23, 18, 13, 8, 3},
-  {24, 19, 14, 9, 4}
-};
 
-struct led {
-  int8_t row,
-  int8_t col, 
-  uint8_t val
-};
-
-struct led ball = {0, 0, 0};
-struct led target = {4, 4, 24};
+void readAccelerometer();
 
 void setup()
 {
-  Serial.begin(115200);
-  while (!Serial); // wait for serial attach
+  Serial.begin(9600);
+  while (!Serial)
+    ; // wait for serial attach
 
   Serial.println();
   Serial.println("Initializing...");
@@ -63,16 +50,13 @@ void setup()
   strip.Begin();
   strip.Show();
 
-
   Serial.println();
   Serial.println("Running...");
 
   pinMode(LED_POWER, OUTPUT);
   digitalWrite(LED_POWER, HIGH);
   randomSeed(millis());
-  strip.SetBrightness(10);
-  
-  
+
 #ifdef _ESP32_HAL_I2C_H_ // For ESP32
   Wire.begin(SDA_PIN, SCL_PIN);
   mySensor.setWire(&Wire);
@@ -82,127 +66,79 @@ void setup()
   mySensor.beginGyro();
   mySensor.beginMag();
 }
+unsigned long timp = 0;
+uint16_t pauza = 100;
 
+uint8_t matrice[5][5] = {
+    {20, 15, 10, 5, 0},
+    {21, 16, 11, 6, 1},
+    {22, 17, 12, 7, 2},
+    {23, 18, 13, 8, 3},
+    {24, 19, 14, 9, 4}};
+
+struct led
+{
+  int8_t row;
+  int8_t col;
+};
+
+struct led ball = {2, 2};
+struct led target = {4, 4};
 
 void loop()
 {
-  if(mySensor.accelUpdate() == 0 && millis() - timp >= pauza)
+
+  if (mySensor.accelUpdate() == 0 && millis() - timp >= pauza)
   {
     timp += pauza;
-    readAccelerometer();
-    refreshDisplay();
-    
-    
-    strip.SetPixelColor(poz_ball, black);
+    strip.SetPixelColor(matrice[ball.row][ball.col], black);
     strip.Show();
-    aX = mySensor.accelX();
-    aY = mySensor.accelY();
-    if (aY < -0.2)
-    {
-      poz_ball++;
-      if (poz_ball > 24)
-        poz_ball = 24;
+    readAccelerometer();
+    strip.SetPixelColor(matrice[ball.row][ball.col], red);
+    strip.SetPixelColor(matrice[target.row][target.col], blue);
+    if(matrice[ball.row][ball.col] == matrice[target.row][target.col]){
+      strip.SetPixelColor(matrice[target.row][target.col], black);
+      strip.Show();
+      target.row = random(0, 4);
+      target.col = random(0, 4);
+      pauza -= 5;
+      if(pauza < 20)
+        pauza = 20;
     }
-    if (aY > 0.2)
-    {
-      poz_ball--;
-      if (poz_ball < 0)
-        poz_ball = 24;
-    }
-    if (aX > 0.12)
-    {
-      poz_ball = poz_ball + 5;
-      if (poz_ball > 24)
-        poz_ball = poz_ball - 5;
-    }
-    if (aX < -0.12){
-      poz_ball = poz_ball - 5;
- if (poz_ball < 0)
-        poz_ball = poz_ball + 5;
-    }
-    
+    strip.Show();
   }
-  //delay(500);
-#if 0
-  Serial.println("Colors R, G, B, W...");
-
-  // set the colors,
-  // if they don't match in order, you need to use NeoGrbFeature feature
-  strip.SetPixelColor(0, red);
-  strip.SetPixelColor(5, green);
-  strip.SetPixelColor(10, blue);
-  strip.SetPixelColor(15, white);
-  // the following line demonstrates rgbw color support
-  // if the NeoPixels are rgbw types the following line will compile
-  // if the NeoPixels are anything else, the following line will give an error
-  //strip.SetPixelColor(3, RgbwColor(colorSaturation));
-  strip.Show();
-
-
-  delay(500);
-
-  Serial.println("Off ...");
-
-  // turn off the pixels
-  strip.SetPixelColor(0, black);
-  strip.SetPixelColor(5, black);
-  strip.SetPixelColor(10, black);
-  strip.SetPixelColor(15, black);
-  strip.Show();
-
-  delay(500);
-
-  Serial.println("HSL Colors R, G, B, W...");
-
-  // set the colors,
-  // if they don't match in order, you may need to use NeoGrbFeature feature
-  strip.SetPixelColor(0, hslRed);
-  strip.SetPixelColor(1, hslGreen);
-  strip.SetPixelColor(2, hslBlue);
-  strip.SetPixelColor(3, hslWhite);
-  strip.Show();
-
-
-  delay(500);
-
-  Serial.println("Off again...");
-
-  // turn off the pixels
-  strip.SetPixelColor(0, hslBlack);
-  strip.SetPixelColor(1, hslBlack);
-  strip.SetPixelColor(2, hslBlack);
-  strip.SetPixelColor(3, hslBlack);
-#endif
-  int poz = random(0, 25);
-  int cul = random(0, 5);
-  for (int i = 0; i < 100; i++)
-  {
-    culoareChange(poz, cul);
-    strip.SetBrightness(i);
-    delay(1);
-  }
-  for (int i = 100; i >= 0; i--)
-  {
-    culoareChange(poz, cul);
-    strip.SetBrightness(i);
-    delay(1);
-  }
-  delay(30);
-
 }
 
-void culoareChange(int p, int c) {
-  int cul = c;
-  int poz = p;
-  if (cul == 0)
-    strip.SetPixelColor(poz, red);
-  else if (cul == 1)
-    strip.SetPixelColor(poz, green);
-  else if (cul == 2)
-    strip.SetPixelColor(poz, blue);
-  else if (cul == 3)
-    strip.SetPixelColor(poz, white);
-  else if (cul == 4)
-    strip.SetPixelColor(poz, mov);
-  strip.Show();
+
+void readAccelerometer()
+{
+  aX = mySensor.accelX();
+  aY = mySensor.accelY();
+  if (aX < -0.2)
+  {
+    ball.col++;
+    if (ball.col > 4)
+      ball.col = 4;
+  }
+  if (aY > 0.2)
+  {
+    ball.row--;
+    if (ball.row < 0)
+      ball.row = 0;
+  }
+  if (aX > 0.2)
+  {
+    ball.col--;
+    if (ball.col < 0)
+      ball.col = 0;
+  }
+  if (aY < -0.2)
+  {
+    ball.row++;
+    if (ball.row > 4)
+      ball.row = 4;
+  }
+  //Serial.println("accelX: " + String(aX));
+  //Serial.println("accelY: " + String(aY));
+ 
 }
